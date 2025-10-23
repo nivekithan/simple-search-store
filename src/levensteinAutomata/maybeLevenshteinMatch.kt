@@ -80,7 +80,6 @@ fun canMatchWithinDistance(expectedWord: String, knownTestCharacters: String, D:
      * two new words `word1[1:]` and `word2[1:]` is within `D` Levenshtein distance. If yes, then we can
      * be sure that `word1` and `word2` also will be within `D` Levenshtein distance
      */
-
     if (expectedWord[0] == knownTestCharacters[0]) {
         if (canMatchWithinDistance(expectedWord.substring(1), knownTestCharacters.substring(1), D)) {
             return true
