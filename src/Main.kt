@@ -1,9 +1,11 @@
 import dictionary.createWordDictionary
+import levensteinAutomata.v2.fuzzySearchTrieTree
+
 
 fun main() {
-    val wordDictionary = createWordDictionary()
+    val dictionary = createWordDictionary()
 
-    val output = wordDictionary.prefixSearch("hell")
+    val output = fuzzySearchTrieTree(dictionary, "hell", 2, 100);
 
     println(output)
 }
