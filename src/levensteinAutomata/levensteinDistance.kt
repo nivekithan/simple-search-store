@@ -1,4 +1,7 @@
-package levensteinAutomata
+package levensteinAutomata.v1
+
+import dictionary.TrieNode
+import dictionary.TrieTree
 
 /**
  * Checks if the two words `word1` and `word2` are within
@@ -69,4 +72,41 @@ fun levenshteinCheck(word1: String, word2: String, D: Int): Boolean {
     }
 
     return false
+}
+
+fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): List<String> {
+    val output = mutableListOf<String>()
+
+    fun dfs(node: TrieNode, prefixString: String, D: Int) {
+        if (output.size >= maxWords) {
+            return
+        }
+
+        for ((char, childNode) in node.children.entries) {
+
+            if (output.size >= maxWords) {
+                return
+            }
+
+            val knownTestCharacters = prefixString + char.toString()
+
+            if (childNode.isTerminal) {
+                // Check if the knownTestCharacters and query is actually within the Levenshtein distance D
+                // without adding more suffix characters.
+                if (levenshteinCheck(query, knownTestCharacters, D)) {
+                    output.add(knownTestCharacters)
+                }
+            }
+
+            dfs(childNode, knownTestCharacters, D)
+
+            continue
+        }
+
+    }
+
+    dfs(tree.root, "", D)
+
+
+    return output
 }

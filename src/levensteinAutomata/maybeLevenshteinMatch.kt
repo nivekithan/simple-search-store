@@ -1,7 +1,8 @@
-package levensteinAutomata
+package levensteinAutomata.v2
 
 import dictionary.TrieNode
 import dictionary.TrieTree
+import levensteinAutomata.v1.levenshteinCheck
 
 /**
  * Checks if a prefix could potentially match a word within a given edit distance.
