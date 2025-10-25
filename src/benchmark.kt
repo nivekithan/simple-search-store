@@ -2,8 +2,8 @@ import dictionary.createWordDictionary
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.measureNanoTime
-import levensteinAutomata.v1.fuzzySearchTrieTree as fuzzySearchV1
 import levensteinAutomata.v2.fuzzySearchTrieTree as fuzzySearchV2
+import levensteinAutomata.v3.fuzzySearchTrieTree as fuzzySearchV3
 
 data class BenchmarkResult(
     val algorithm: String,
@@ -32,8 +32,8 @@ fun main() {
     println("Performing warm-up runs (excluded from timings)...")
     distances.forEach { d ->
         queries.take(50).forEach { query ->
-            fuzzySearchV1(trie, query, d, maxWords)
             fuzzySearchV2(trie, query, d, maxWords)
+            fuzzySearchV3(trie, query, d, maxWords)
         }
     }
     println("Warm-up complete.\n")
@@ -45,18 +45,6 @@ fun main() {
         println("Benchmarking distance $d...")
 
         var queriesCompleted = 0
-        val v1Time = measureNanoTime {
-            queries.forEach { query ->
-                fuzzySearchV1(trie, query, d, maxWords)
-                queriesCompleted++
-                if (queriesCompleted % 100 == 0 || queriesCompleted == queries.size) {
-                    println("  v1: $queriesCompleted/${queries.size} queries completed")
-                }
-            }
-        }
-        results.add(BenchmarkResult("v1", d, v1Time, queries.size))
-
-        queriesCompleted = 0
         val v2Time = measureNanoTime {
             queries.forEach { query ->
                 fuzzySearchV2(trie, query, d, maxWords)
@@ -67,6 +55,18 @@ fun main() {
             }
         }
         results.add(BenchmarkResult("v2", d, v2Time, queries.size))
+
+        queriesCompleted = 0
+        val v3Time = measureNanoTime {
+            queries.forEach { query ->
+                fuzzySearchV3(trie, query, d, maxWords)
+                queriesCompleted++
+                if (queriesCompleted % 100 == 0 || queriesCompleted == queries.size) {
+                    println("  v3: $queriesCompleted/${queries.size} queries completed")
+                }
+            }
+        }
+        results.add(BenchmarkResult("v3", d, v3Time, queries.size))
 
         println("Distance $d benchmarking complete.\n")
     }
@@ -98,13 +98,13 @@ fun printResults(results: List<BenchmarkResult>, maxWords: Int) {
         }
 
         if (resultsForD.size == 2) {
-            val v1Result = resultsForD.find { it.algorithm == "v1" }!!
             val v2Result = resultsForD.find { it.algorithm == "v2" }!!
-            val percentDiff = ((v2Result.totalNs - v1Result.totalNs).toDouble() / v1Result.totalNs) * 100
+            val v3Result = resultsForD.find { it.algorithm == "v3" }!!
+            val percentDiff = ((v3Result.totalNs - v2Result.totalNs).toDouble() / v2Result.totalNs) * 100
             val comparison = if (percentDiff > 0) {
-                "v2 is %.1f%% slower than v1".format(percentDiff)
+                "v3 is %.1f%% slower than v2".format(percentDiff)
             } else {
-                "v2 is %.1f%% faster than v1".format(-percentDiff)
+                "v3 is %.1f%% faster than v2".format(-percentDiff)
             }
             println("    → $comparison")
         }
