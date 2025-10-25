@@ -1,5 +1,8 @@
 package levensteinAutomata
 
+import dictionary.TrieNode
+import dictionary.TrieTree
+
 /**
  * Checks if a prefix could potentially match a word within a given edit distance.
  *
@@ -24,6 +27,7 @@ package levensteinAutomata
  *   ✓ Can complete "e" → "ehello", then delete first 'e' (distance = 1)
  */
 fun canMatchWithinDistance(expectedWord: String, knownTestCharacters: String, D: Int): Boolean {
+
     if (D < 0) {
         return false
     }
@@ -87,4 +91,45 @@ fun canMatchWithinDistance(expectedWord: String, knownTestCharacters: String, D:
     }
 
     return false
+}
+
+fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): List<String> {
+    val output = mutableListOf<String>()
+
+    fun dfs(node: TrieNode, prefixString: String, D: Int) {
+        if (output.size >= maxWords) {
+            return
+        }
+
+        for ((char, childNode) in node.children.entries) {
+
+            if (output.size >= maxWords) {
+                return
+            }
+
+            val knownTestCharacters = prefixString + char.toString()
+            if (canMatchWithinDistance(query, knownTestCharacters, D)) {
+                // Continue searching this path
+
+                if (childNode.isTerminal) {
+                    // Check if the knownTestCharacters and query is actually within the Levenshtein distance D
+                    // without adding more suffix characters.
+                    if (levenshteinCheck(query, knownTestCharacters, D)) {
+                        output.add(knownTestCharacters)
+                    }
+                }
+
+                dfs(childNode, knownTestCharacters, D)
+
+                continue
+            }
+            // remove this path from searching
+        }
+
+    }
+
+    dfs(tree.root, "", D)
+
+
+    return output
 }
