@@ -76,7 +76,6 @@ private fun processCharacterForInput(
 
         if (chiValue) {
             possibleOutputs.add(Pair(expectedWordOffset + i + 1, DOffset + i))
-            break
         }
     }
 
@@ -164,6 +163,13 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
     val output = mutableListOf<String>()
     val automata = LevenshteinAutomata(query, D)
 
+    val profile = mutableMapOf<Char, List<Boolean>>()
+    val zeroMatch = MutableList(query.length) { false }
+
+    for (ch in query) {
+        profile.getOrPut(ch, { query.map { it == ch } })
+    }
+
 
     fun dfs(node: TrieNode, input: List<Pair<Int, Int>>, prefix: String, D: Int) {
         if (output.size >= maxWords) {
@@ -176,7 +182,7 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
                 return
             }
 
-            val chiVector = query.map { it == char }
+            val chiVector = profile.getOrElse(char) { zeroMatch }
 
             val result = automata.characterProcessor(input, chiVector)
 

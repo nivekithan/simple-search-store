@@ -17,7 +17,7 @@ data class BenchmarkResult(
 }
 
 fun main() {
-    val maxWords = 20
+    val maxWords = 20_000
     val distances = listOf(1, 2, 3)
 
     println("Loading dictionary and queries...")
