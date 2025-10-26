@@ -1,4 +1,4 @@
-package levensteinAutomata.v4.draftv1
+package levensteinAutomata.v4.draftv2
 
 import dictionary.TrieNode
 import dictionary.TrieTree
@@ -11,20 +11,19 @@ import dictionary.TrieTree
  */
 private fun processCharacterForInput(
     previousOperationResult: Pair<Int, Int>,
-    character: Char,
-    expectedWord: String,
+    chiVector: List<Boolean>,
     D: Int,
 ): List<Pair<Int, Int>> {
     val possibleOutputs = mutableListOf<Pair<Int, Int>>()
     val expectedWordOffset = previousOperationResult.first
     val DOffset = previousOperationResult.second
 
-    val newExpectedWord = expectedWord.substring(expectedWordOffset)
+    val newExpectedChi = chiVector.subList(expectedWordOffset, chiVector.size)
     val newD = D - DOffset
 
     require(newD >= 0, { "newD less than 0, should never be created" })
 
-    if (newExpectedWord.isEmpty()) {
+    if (newExpectedChi.isEmpty()) {
         if (newD > 0) {
             /**
              * Then the only operation is to delete the secondCharacter
@@ -48,13 +47,13 @@ private fun processCharacterForInput(
 
     // matching letters
 
-    if (newExpectedWord[0] == character) {
+    if (newExpectedChi[0]) {
         possibleOutputs.add(Pair(expectedWordOffset + 1, DOffset))
     }
 
     // Addition
 
-    for ((i, char) in newExpectedWord.withIndex()) {
+    for ((i, chiValue) in newExpectedChi.withIndex()) {
         /**
          * We are trying to a find character in expectedWord which is equal to firstCharacter and the number of
          * addition operations required must be less than D
@@ -75,7 +74,7 @@ private fun processCharacterForInput(
             break
         }
 
-        if (char == character) {
+        if (chiValue) {
             possibleOutputs.add(Pair(expectedWordOffset + i + 1, DOffset + i))
             break
         }
@@ -84,13 +83,11 @@ private fun processCharacterForInput(
     return possibleOutputs
 }
 
-
 data class ProcessCharacterCacheKey(
     val expectedWordOffset: Int,
     val DUsed: Int,
+    val chiVector: List<Boolean>,
     val D: Int,
-    val character: Char,
-    val expectedWord: String
 )
 
 object ProcessCharacterCache {
@@ -98,16 +95,14 @@ object ProcessCharacterCache {
 
     fun memoizedProcessCharacterForInput(
         previousOperationResult: Pair<Int, Int>,
-        character: Char,
-        expectedWord: String,
+        chiVector: List<Boolean>,
         D: Int,
     ): List<Pair<Int, Int>> {
         val cacheKey = ProcessCharacterCacheKey(
             expectedWordOffset = previousOperationResult.first,
             DUsed = previousOperationResult.second,
+            chiVector = chiVector,
             D = D,
-            character = character,
-            expectedWord = expectedWord
         )
         val cachedPossibleOutput = cache.get(cacheKey)
 
@@ -115,7 +110,7 @@ object ProcessCharacterCache {
             return cachedPossibleOutput
         }
 
-        val output = processCharacterForInput(previousOperationResult, character, expectedWord, D)
+        val output = processCharacterForInput(previousOperationResult, chiVector, D)
 
         cache[cacheKey] = output
 
@@ -126,15 +121,16 @@ object ProcessCharacterCache {
 
 class LevenshteinAutomata(val expectedWord: String, val D: Int) {
 
-    fun characterProcessor(input: List<Pair<Int, Int>>, character: Char): List<Pair<Int, Int>> {
+    fun characterProcessor(input: List<Pair<Int, Int>>, chiVector: List<Boolean>): List<Pair<Int, Int>> {
         val possibleOutputs = mutableListOf<Pair<Int, Int>>()
 
+
         for (previousOperationResult in input) {
+
             possibleOutputs.addAll(
                 ProcessCharacterCache.memoizedProcessCharacterForInput(
                     previousOperationResult = previousOperationResult,
-                    character = character,
-                    expectedWord = expectedWord,
+                    chiVector = chiVector,
                     D = D
                 )
             )
@@ -168,6 +164,7 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
     val output = mutableListOf<String>()
     val automata = LevenshteinAutomata(query, D)
 
+
     fun dfs(node: TrieNode, input: List<Pair<Int, Int>>, prefix: String, D: Int) {
         if (output.size >= maxWords) {
             return
@@ -179,8 +176,9 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
                 return
             }
 
+            val chiVector = query.map { it == char }
 
-            val result = automata.characterProcessor(input, char)
+            val result = automata.characterProcessor(input, chiVector)
 
             if (result.isNotEmpty()) {
                 val newPrefix = prefix + char.toString()
