@@ -164,13 +164,6 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
     val output = mutableListOf<String>()
     val automata = LevenshteinAutomata(query, D)
 
-    val canonicalRepresentation = mutableMapOf<Char, List<Boolean>>()
-    val emptyMatch = query.map { false }
-
-    for (char in query) {
-        canonicalRepresentation.getOrPut(char, { query.map { it == char } })
-    }
-
 
     fun dfs(node: TrieNode, input: List<Pair<Int, Int>>, prefix: String, D: Int) {
         if (output.size >= maxWords) {
@@ -183,7 +176,7 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
                 return
             }
 
-            val chiVector = canonicalRepresentation.getOrElse(char, { emptyMatch })
+            val chiVector = query.map { it == char }
 
             val result = automata.characterProcessor(input, chiVector)
 

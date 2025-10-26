@@ -1,4 +1,4 @@
-package levensteinAutomata.v4.draftv2
+package levensteinAutomata.v4.bitmask
 
 import dictionary.TrieNode
 import dictionary.TrieTree
@@ -11,73 +11,47 @@ import dictionary.TrieTree
  */
 private fun processCharacterForInput(
     previousOperationResult: Pair<Int, Int>,
-    chiVector: List<Boolean>,
+    chiMask: Long,
+    expectedWordLength: Int,
     D: Int,
 ): List<Pair<Int, Int>> {
     val possibleOutputs = mutableListOf<Pair<Int, Int>>()
     val expectedWordOffset = previousOperationResult.first
     val DOffset = previousOperationResult.second
 
-    val newExpectedChi = chiVector.subList(expectedWordOffset, chiVector.size)
+    val remainingLength = expectedWordLength - expectedWordOffset
     val newD = D - DOffset
 
-    require(newD >= 0, { "newD less than 0, should never be created" })
+    require(newD >= 0) { "newD less than 0, should never be created" }
 
-    if (newExpectedChi.isEmpty()) {
+    if (remainingLength <= 0) {
         if (newD > 0) {
-            /**
-             * Then the only operation is to delete the secondCharacter
-             */
             possibleOutputs.add(Pair(expectedWordOffset, DOffset + 1))
         }
-
-        /**
-         * If we don't have newD budget, then there is no way to reach expectedWord
-        //             */
         return possibleOutputs
     }
 
     if (newD > 0) {
-        // deletion
         possibleOutputs.add(Pair(expectedWordOffset, DOffset + 1))
-
-        // substitution
         possibleOutputs.add(Pair(expectedWordOffset + 1, DOffset + 1))
     }
 
-    // matching letters
+    val remainingMask = chiMask ushr expectedWordOffset
 
-    if (newExpectedChi[0]) {
+    if ((remainingMask and 1L) != 0L) {
         possibleOutputs.add(Pair(expectedWordOffset + 1, DOffset))
     }
 
-    // Addition
+    var shiftedMask = remainingMask ushr 1
+    var additionDistance = 1
 
-    for ((i, chiValue) in newExpectedChi.withIndex()) {
-        /**
-         * We are trying to a find character in expectedWord which is equal to firstCharacter and the number of
-         * addition operations required must be less than D
-         *
-         */
-        if (i == 0) {
-            /**
-             * Skip this entry, since if firstCharacter == char in this condition then it is same as matching
-             * letter operation
-             */
-            continue
-        }
-
-        if (i > newD) {
-            /**
-             * We could not find such a character in expectedWord, therefore addition operation is never possible
-             */
+    while (shiftedMask != 0L && additionDistance <= newD && additionDistance < remainingLength) {
+        if ((shiftedMask and 1L) != 0L) {
+            possibleOutputs.add(Pair(expectedWordOffset + additionDistance + 1, DOffset + additionDistance))
             break
         }
-
-        if (chiValue) {
-            possibleOutputs.add(Pair(expectedWordOffset + i + 1, DOffset + i))
-            break
-        }
+        shiftedMask = shiftedMask ushr 1
+        additionDistance++
     }
 
     return possibleOutputs
@@ -86,7 +60,8 @@ private fun processCharacterForInput(
 data class ProcessCharacterCacheKey(
     val expectedWordOffset: Int,
     val DUsed: Int,
-    val chiVector: List<Boolean>,
+    val chiMask: Long,
+    val expectedWordLength: Int,
     val D: Int,
 )
 
@@ -95,22 +70,24 @@ object ProcessCharacterCache {
 
     fun memoizedProcessCharacterForInput(
         previousOperationResult: Pair<Int, Int>,
-        chiVector: List<Boolean>,
+        chiMask: Long,
+        expectedWordLength: Int,
         D: Int,
     ): List<Pair<Int, Int>> {
         val cacheKey = ProcessCharacterCacheKey(
             expectedWordOffset = previousOperationResult.first,
             DUsed = previousOperationResult.second,
-            chiVector = chiVector,
+            chiMask = chiMask,
+            expectedWordLength = expectedWordLength,
             D = D,
         )
-        val cachedPossibleOutput = cache.get(cacheKey)
+        val cachedPossibleOutput = cache[cacheKey]
 
         if (cachedPossibleOutput != null) {
             return cachedPossibleOutput
         }
 
-        val output = processCharacterForInput(previousOperationResult, chiVector, D)
+        val output = processCharacterForInput(previousOperationResult, chiMask, expectedWordLength, D)
 
         cache[cacheKey] = output
 
@@ -121,16 +98,17 @@ object ProcessCharacterCache {
 
 class LevenshteinAutomata(val expectedWord: String, val D: Int) {
 
-    fun characterProcessor(input: List<Pair<Int, Int>>, chiVector: List<Boolean>): List<Pair<Int, Int>> {
+    private val expectedWordLength = expectedWord.length
+
+    fun characterProcessor(input: List<Pair<Int, Int>>, chiMask: Long): List<Pair<Int, Int>> {
         val possibleOutputs = mutableListOf<Pair<Int, Int>>()
 
-
         for (previousOperationResult in input) {
-
             possibleOutputs.addAll(
                 ProcessCharacterCache.memoizedProcessCharacterForInput(
                     previousOperationResult = previousOperationResult,
-                    chiVector = chiVector,
+                    chiMask = chiMask,
+                    expectedWordLength = expectedWordLength,
                     D = D
                 )
             )
@@ -164,8 +142,19 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
     val output = mutableListOf<String>()
     val automata = LevenshteinAutomata(query, D)
 
+    require(query.length <= Long.SIZE_BITS) {
+        "Query length exceeds bitmask capacity; use a larger mask type"
+    }
+
+    val chiMaskByChar = mutableMapOf<Char, Long>()
+
+    query.forEachIndexed { index, char ->
+        val existingMask = chiMaskByChar.getOrDefault(char, 0L)
+        chiMaskByChar[char] = existingMask or (1L shl index)
+    }
 
     fun dfs(node: TrieNode, input: List<Pair<Int, Int>>, prefix: String, D: Int) {
+
         if (output.size >= maxWords) {
             return
         }
@@ -176,9 +165,9 @@ fun fuzzySearchTrieTree(tree: TrieTree, query: String, D: Int, maxWords: Int): L
                 return
             }
 
-            val chiVector = query.map { it == char }
+            val chiMask = chiMaskByChar[char] ?: 0L
 
-            val result = automata.characterProcessor(input, chiVector)
+            val result = automata.characterProcessor(input, chiMask)
 
             if (result.isNotEmpty()) {
                 val newPrefix = prefix + char.toString()
