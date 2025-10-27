@@ -12,7 +12,7 @@ fun main() {
     val queries = Files.readAllLines(Paths.get("data/queries.txt"))
         .map(String::trim)
         .filter { it.isNotEmpty() }
-        .subList(0, 10_000)
+        .subList(0, 1_000)
 
     println("Running benchmarks...\n")
     distances.forEach { d ->
@@ -20,7 +20,7 @@ fun main() {
 
         var queriesCompleted = 0
         queries.forEach { query ->
-            levensteinAutomata.v4.fuzzySearchTrieTree(trie, query, d, maxWords)
+            levensteinAutomata.v5.fuzzySearchTrieTree(trie, query, d, maxWords)
             queriesCompleted++
             if (queriesCompleted % 100 == 0 || queriesCompleted == queries.size) {
                 println("  v4: $queriesCompleted/${queries.size} queries completed")

@@ -3,7 +3,8 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.measureNanoTime
 import levensteinAutomata.v3.fuzzySearchTrieTree as fuzzySearchV3
-import levensteinAutomata.v4.fuzzySearchTrieTree as fuzzySearchV4
+import levensteinAutomata.v6.LevenshteinAutomata
+import levensteinAutomata.v6.fuzzySearchTrieTree as fuzzySearchV6
 
 data class BenchmarkResult(
     val algorithm: String,
@@ -17,23 +18,25 @@ data class BenchmarkResult(
 }
 
 fun main() {
-    val maxWords = 20_000
+    val maxWords = 20
     val distances = listOf(1, 2, 3)
+    val automataByDistance = distances.associateWith { LevenshteinAutomata(it) }
 
     println("Loading dictionary and queries...")
     val trie = createWordDictionary()
     val queries = Files.readAllLines(Paths.get("data/queries.txt"))
         .map(String::trim)
         .filter { it.isNotEmpty() }
-        .subList(0, 10_000)
+        .subList(0, 1000)
 
     println("Dictionary loaded. Total queries: ${queries.size}\n")
 
     println("Performing warm-up runs (excluded from timings)...")
     distances.forEach { d ->
+        val v6Automata = automataByDistance.getValue(d)
         queries.take(50).forEach { query ->
             fuzzySearchV3(trie, query, d, maxWords)
-            fuzzySearchV4(trie, query, d, maxWords)
+            fuzzySearchV6(trie, query, v6Automata, maxWords)
         }
     }
     println("Warm-up complete.\n")
@@ -56,18 +59,19 @@ fun main() {
         }
         results.add(BenchmarkResult("v3", d, v3Time, queries.size))
 
+        val v6Automata = automataByDistance.getValue(d)
         queriesCompleted = 0
-        val v4Time = measureNanoTime {
+        val v6Time = measureNanoTime {
             queries.forEach { query ->
-                fuzzySearchV4(trie, query, d, maxWords)
+                fuzzySearchV6(trie, query, v6Automata, maxWords)
 
                 queriesCompleted++
                 if (queriesCompleted % 100 == 0 || queriesCompleted == queries.size) {
-                    println("  v4: $queriesCompleted/${queries.size} queries completed")
+                    println("  v6: $queriesCompleted/${queries.size} queries completed")
                 }
             }
         }
-        results.add(BenchmarkResult("v4", d, v4Time, queries.size))
+        results.add(BenchmarkResult("v6", d, v6Time, queries.size))
 
         println("Distance $d benchmarking complete.\n")
     }
@@ -100,13 +104,13 @@ fun printResults(results: List<BenchmarkResult>, maxWords: Int) {
 
         if (resultsForD.size == 2) {
             val v3Result = resultsForD.find { it.algorithm == "v3" }
-            val v4Result = resultsForD.find { it.algorithm == "v4" }
-            if (v3Result != null && v4Result != null) {
-                val percentDiff = ((v4Result.totalNs - v3Result.totalNs).toDouble() / v3Result.totalNs) * 100
+            val v6Result = resultsForD.find { it.algorithm == "v6" }
+            if (v3Result != null && v6Result != null) {
+                val percentDiff = ((v6Result.totalNs - v3Result.totalNs).toDouble() / v3Result.totalNs) * 100
                 val comparison = if (percentDiff > 0) {
-                    "v4 is %.1f%% slower than v3".format(percentDiff)
+                    "v6 is %.1f%% slower than v3".format(percentDiff)
                 } else {
-                    "v4 is %.1f%% faster than v3".format(-percentDiff)
+                    "v6 is %.1f%% faster than v3".format(-percentDiff)
                 }
                 println("    → $comparison")
             }
