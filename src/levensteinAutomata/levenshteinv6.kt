@@ -1,3 +1,5 @@
+@file:Suppress("PackageDirectoryMismatch")
+
 package levensteinAutomata.v6
 
 import dictionary.TrieNode
