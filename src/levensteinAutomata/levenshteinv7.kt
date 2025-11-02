@@ -43,6 +43,41 @@ class LevenshteinAutomata(val D: Int) {
         }
     }
 
+    fun initialStateKey(): NormalisedStateKey {
+        return NormalisedStateKey(0, StateKey(listOf(State(offset = 0, dUsed = 0))))
+    }
+
+    fun step(query: String, state: NormalisedStateKey, character: Char): NormalisedStateKey? {
+        val encoding = characteristicEncoding(query, state.shift, character)
+        val transition = precomputedAutomata[state.nextStateKey] ?: return null
+
+        val nextState = transition[encoding] ?: return null
+
+        if (nextState.nextStateKey.allStates.isEmpty()) {
+            return null
+        }
+
+        return NormalisedStateKey(state.shift + nextState.shift, nextState.nextStateKey)
+    }
+
+    private fun characteristicEncoding(query: String, offset: Int, character: Char): Int {
+        var marker = 1 shl (maxChiWidth - 1)
+        var encoding = 0;
+
+
+        for (i in 0 until maxChiWidth) {
+            val index = i + offset
+
+            if (index < query.length && query[index] == character) {
+                encoding = encoding or marker
+            }
+
+            marker = marker shr 1
+        }
+
+        return encoding
+    }
+
     private fun getTransition(stateKey: StateKey, chiVector: Int): List<State> {
 
         if (stateKey.allStates.isEmpty()) {
