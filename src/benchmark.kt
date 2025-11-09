@@ -4,7 +4,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.measureNanoTime
 import levensteinAutomata.v3.fuzzySearchTrieTree as fuzzySearchV3
-import levensteinAutomata.v7.fuzzySearchTrieTree as fuzzySearchV7
+import levensteinAutomata.v7.fuzzySearchTrie as fuzzySearchV7
 
 data class BenchmarkResult(
     val algorithm: String,

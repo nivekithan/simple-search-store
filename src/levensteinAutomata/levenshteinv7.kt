@@ -2,6 +2,9 @@
 
 package levensteinAutomata.v7
 
+import dictionary.TrieNode
+import dictionary.TrieTree
+
 
 data class State(val offset: Int, val dUsed: Int) {}
 
@@ -128,4 +131,50 @@ class LevenshteinAutomata(val D: Int) {
 
         return NormalisedStateKey(shift = minOffset, nextStateKey = StateKey(normalisedStates))
     }
+
+    fun isExactMatch(state: NormalisedStateKey, query: String): Boolean {
+        for (currentState in state.nextStateKey.allStates) {
+            val remainingQuery = query.substring(state.shift + currentState.offset)
+            val remainingD = D - currentState.dUsed
+
+            if (remainingD >= remainingQuery.length) {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+fun fuzzySearchTrie(tree: TrieTree, query: String, automata: LevenshteinAutomata, maxWords: Int): List<String> {
+    val output = mutableListOf<String>()
+    val initialState = automata.initialStateKey()
+
+    fun dfs(node: TrieNode, state: NormalisedStateKey, prefix: String) {
+        if (output.size >= maxWords) {
+            return
+        }
+
+        for ((char, childNode) in node.children.entries) {
+            if (output.size >= maxWords) {
+                return
+            }
+
+            val nextState = automata.step(query, state, char)
+
+            if (nextState != null) {
+                val newPrefix = prefix + char
+
+                if (childNode.isTerminal) {
+                    if (automata.isExactMatch(nextState, query)) {
+                        output.add(newPrefix)
+                    }
+                }
+
+                dfs(childNode, nextState, newPrefix)
+            }
+        }
+    }
+
+    dfs(tree.root, initialState, "")
+    return output
 }
